@@ -27,10 +27,13 @@ def tests_impl(
     session_python_info = session.run(
         "python",
         "-c",
-        "import sys; print(sys.implementation.name, sys.version_info.releaselevel)",
+        "import sys; print(sys.implementation.name, sys.version_info.releaselevel,"
+        " sys.version_info.major, sys.version_info.minor)",
         silent=True,
     ).strip()  # type: ignore[union-attr] # mypy doesn't know that silent=True  will return a string
-    implementation_name, release_level = session_python_info.split(" ")
+    implementation_name, release_level, major, minor = session_python_info.split()[
+        -4:
+    ]
 
     # Install deps and the package itself.
     session.run_install(
@@ -53,6 +56,10 @@ def tests_impl(
     if implementation_name != "cpython" or release_level != "final":
         memray_supported = False
     elif sys.platform == "win32":
+        memray_supported = False
+    elif (int(major), int(minor)) >= (3, 14):
+        # pyproject installs pytest-memray only for python_version < "3.14",
+        # so passing --memray on 3.14+ would fail with an unknown option.
         memray_supported = False
 
     # Environment variables being passed to the pytest run.
